@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { MOTIVATIONAL_MESSAGES } from './config/motivationalMessages'
 import { QUESTIONS, type Question } from './config/questions'
@@ -52,6 +52,11 @@ function App() {
   const [emailSent, setEmailSent] = useState(false)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [roundQuestions, setRoundQuestions] = useState<Question[]>([])
+  const [timerSeconds, setTimerSeconds] = useState(3600)
+  const [isAnswerFeedbackModalOpen, setIsAnswerFeedbackModalOpen] = useState(false)
+  const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(5)
+  const [pendingAnswer, setPendingAnswer] = useState<{ isCorrect: boolean; isJokerAttempt: boolean; isLastQuestion: boolean } | null>(null)
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
 
   const currentQuestion = useMemo(
     () => roundQuestions[currentQuestionIndex],
@@ -63,6 +68,55 @@ function App() {
 
   const canStart = playerName.trim().length > 0
   const hasMinimumQuestions = BASE_QUESTIONS.length >= QUESTIONS_PER_ROUND
+
+  function formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  useEffect(() => {
+    if (!hasWon) {
+      setTimerSeconds(3600)
+      return
+    }
+
+    const interval = setInterval(() => {
+      setTimerSeconds((previous) => {
+        if (previous <= 1) {
+          return 0
+        }
+        return previous - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [hasWon])
+
+  useEffect(() => {
+    if (!isAnswerFeedbackModalOpen) {
+      setAnswerFeedbackSeconds(5)
+      return
+    }
+
+    const interval = setInterval(() => {
+      setAnswerFeedbackSeconds((previous) => {
+        if (previous <= 1) {
+          return 0
+        }
+        return previous - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isAnswerFeedbackModalOpen])
+
+  useEffect(() => {
+    if (answerFeedbackSeconds === 0 && isAnswerFeedbackModalOpen && pendingAnswer) {
+      setIsAnswerFeedbackModalOpen(false)
+      processPendingAnswer()
+    }
+  }, [answerFeedbackSeconds, isAnswerFeedbackModalOpen, pendingAnswer])
 
   function startGame() {
     if (!canStart || !hasMinimumQuestions) {
@@ -132,32 +186,47 @@ function App() {
     }
   }
 
+  function processPendingAnswer() {
+    if (!pendingAnswer) return
+
+    const { isCorrect, isJokerAttempt, isLastQuestion } = pendingAnswer
+
+    if (isJokerAttempt || !isCorrect) {
+      openFailureModal()
+      setPendingAnswer(null)
+      return
+    }
+
+    if (isLastQuestion) {
+      setHasWon(true)
+      setPendingAnswer(null)
+      return
+    }
+
+    setIsSuccessModalOpen(true)
+    setPendingAnswer(null)
+  }
+
+  function continueToNextQuestion() {
+    setIsSuccessModalOpen(false)
+    setCurrentQuestionIndex((previous) => previous + 1)
+  }
+
   function handleAnswer(optionIndex: number) {
     if (!displayedQuestion) {
       return
     }
 
-    if (isFirstAttemptFinalQuestion) {
-      setHasUsedJoker(true)
-      openFailureModal()
-      return
-    }
-
+    const isJokerAttempt = isFirstAttemptFinalQuestion
     const isCorrect = optionIndex === displayedQuestion.correctOptionIndex
-
-    if (!isCorrect) {
-      openFailureModal()
-      return
-    }
-
     const isLastQuestion = currentQuestionIndex === QUESTIONS_PER_ROUND - 1
 
-    if (isLastQuestion) {
-      setHasWon(true)
-      return
+    if (isJokerAttempt) {
+      setHasUsedJoker(true)
     }
 
-    setCurrentQuestionIndex((previous) => previous + 1)
+    setPendingAnswer({ isCorrect, isJokerAttempt, isLastQuestion })
+    setIsAnswerFeedbackModalOpen(true)
   }
 
   return (
@@ -219,7 +288,20 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && !emailSent && (
+        {gameStarted && hasWon && !emailSent && timerSeconds > 0 && (
+          <div className="result-box">
+            <h2>Parabéns, {playerName.trim()}!</h2>
+            <p>Você acertou as 10 perguntas seguidas.</p>
+            <div className="timer-section">
+              <p>Preparando sua revelação...</p>
+              <div className="timer-display">
+                <span className="timer-number">{formatTime(timerSeconds)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {gameStarted && hasWon && !emailSent && timerSeconds === 0 && (
           <div className="result-box">
             <h2>Parabéns, {playerName.trim()}!</h2>
             <p>Você acertou as 10 perguntas seguidas.</p>
@@ -259,6 +341,29 @@ function App() {
           </p>
         )}
       </section>
+
+      {isAnswerFeedbackModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card feedback-modal">
+            <p className="feedback-message">Sua resposta está sendo analisada...</p>
+            <div className="feedback-timer">
+              <span className="feedback-timer-number">{answerFeedbackSeconds}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSuccessModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="success-title">
+          <div className="modal-card">
+            <h2 id="success-title">Acertou! 🎉</h2>
+            <p>Você respondeu corretamente!</p>
+            <button type="button" onClick={continueToNextQuestion}>
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
 
       {isFailureModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="failure-title">
