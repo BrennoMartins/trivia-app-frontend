@@ -3,6 +3,8 @@ import './App.css'
 import { MOTIVATIONAL_MESSAGES } from './config/motivationalMessages'
 import { QUESTIONS, type Question } from './config/questions'
 import { sendRevealEmail } from './services/emailService'
+import successPhoto from './assets/sucess.jpg'
+import errorPhoto from './assets/error.jpg'
 
 const QUESTIONS_PER_ROUND = 10
 const JOKER_QUESTION_ID = 'q0'
@@ -65,6 +67,7 @@ function App() {
   const isFirstAttemptFinalQuestion =
     Boolean(JOKER_QUESTION) && !hasUsedJoker && currentQuestionIndex === QUESTIONS_PER_ROUND - 1
   const displayedQuestion = isFirstAttemptFinalQuestion ? JOKER_QUESTION : currentQuestion
+  const questionProgressPercentage = ((currentQuestionIndex + 1) / QUESTIONS_PER_ROUND) * 100
 
   const canStart = playerName.trim().length > 0
   const hasMinimumQuestions = BASE_QUESTIONS.length >= QUESTIONS_PER_ROUND
@@ -232,7 +235,7 @@ function App() {
   return (
     <main className="quiz-page">
       <section className="quiz-card">
-        <h1>Responda e descubra se é Menino ou Menina</h1>
+        <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>
 
         {!hasMinimumQuestions && (
           <p className="status error">
@@ -272,6 +275,19 @@ function App() {
             <p className="status">
               Pergunta {currentQuestionIndex + 1} de {QUESTIONS_PER_ROUND}
             </p>
+            <div
+              className="question-progress"
+              role="progressbar"
+              aria-label="Progresso das perguntas"
+              aria-valuemin={1}
+              aria-valuemax={QUESTIONS_PER_ROUND}
+              aria-valuenow={currentQuestionIndex + 1}
+            >
+              <div
+                className="question-progress-bar"
+                style={{ width: `${questionProgressPercentage}%` }}
+              />
+            </div>
             <h2>{displayedQuestion.prompt}</h2>
 
             <div className="options-grid">
@@ -355,8 +371,9 @@ function App() {
 
       {isSuccessModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="success-title">
-          <div className="modal-card">
+          <div className="modal-card success-modal">
             <h2 id="success-title">Acertou! 🎉</h2>
+            <img className="success-photo" src={successPhoto} alt="Comemoração" />
             <p>Você respondeu corretamente!</p>
             <button type="button" onClick={continueToNextQuestion}>
               Continuar
@@ -367,8 +384,9 @@ function App() {
 
       {isFailureModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="failure-title">
-          <div className="modal-card">
+          <div className="modal-card error-modal">
             <h2 id="failure-title">Não foi dessa vez</h2>
+            <img className="error-photo" src={errorPhoto} alt="Tentativa para a próxima rodada" />
             <p>{failureMessage}</p>
             <button type="button" onClick={closeFailureModalAndRestart}>
               Tentar novamente
