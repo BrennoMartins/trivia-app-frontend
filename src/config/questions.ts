@@ -188,7 +188,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'q0',
-    prompt: 'Quando o marrone ficou sabendo sobre o bebe, o que ele disse?',
+    prompt: 'Quando o Marrone ficou sabendo sobre o bebe, o que ele disse?',
     options: ['Au', 'Auau', 'Auauau', 'Auuuuuuuu'],
     correctOptionIndex: 5,
   },  
