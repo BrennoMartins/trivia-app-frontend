@@ -7,7 +7,7 @@ import { sendRevealEmail } from './services/emailService'
 const QUESTIONS_PER_ROUND = 10
 const JOKER_QUESTION_ID = 'q0'
 const FIRST_ROUND_NORMAL_QUESTIONS = QUESTIONS_PER_ROUND - 1
-const REVEAL_RESULT = 'Menina'
+const REVEAL_RESULT = 'Luisa'
 
 const JOKER_QUESTION = QUESTIONS.find((question) => question.id === JOKER_QUESTION_ID)
 const BASE_QUESTIONS = QUESTIONS.filter((question) => question.id !== JOKER_QUESTION_ID)
@@ -163,7 +163,7 @@ function App() {
   return (
     <main className="quiz-page">
       <section className="quiz-card">
-        <h1>Quiz de Perguntas</h1>
+        <h1>Responda e descubra se é Luisa ou Pedro</h1>
 
         {!hasMinimumQuestions && (
           <p className="status error">
