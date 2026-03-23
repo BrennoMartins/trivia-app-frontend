@@ -1,8 +1,9 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { ANSWER_FEEDBACK_MESSAGES } from './config/answerFeedbackMessages'
 import { MOTIVATIONAL_MESSAGES } from './config/motivationalMessages'
 import { QUESTIONS, type Question } from './config/questions'
-import { sendRevealEmail } from './services/emailService'
+import logo from './assets/Logo.png'
 import successPhoto from './assets/sucess.jpg'
 import errorPhoto from './assets/error.jpg'
 
@@ -10,6 +11,7 @@ const QUESTIONS_PER_ROUND = 10
 const JOKER_QUESTION_ID = 'q0'
 const FIRST_ROUND_NORMAL_QUESTIONS = QUESTIONS_PER_ROUND - 1
 const REVEAL_RESULT = 'Menina'
+const REVEAL_TIMER_SECONDS = 20
 
 const JOKER_QUESTION = QUESTIONS.find((question) => question.id === JOKER_QUESTION_ID)
 const BASE_QUESTIONS = QUESTIONS.filter((question) => question.id !== JOKER_QUESTION_ID)
@@ -41,22 +43,23 @@ function getRandomMotivationalMessage(): string {
   return MOTIVATIONAL_MESSAGES[randomIndex]
 }
 
+function getRandomAnswerFeedbackMessage(): string {
+  const randomIndex = Math.floor(Math.random() * ANSWER_FEEDBACK_MESSAGES.length)
+  return ANSWER_FEEDBACK_MESSAGES[randomIndex]
+}
+
 function App() {
-  const [playerName, setPlayerName] = useState('')
   const [gameStarted, setGameStarted] = useState(false)
   const [hasWon, setHasWon] = useState(false)
   const [hasUsedJoker, setHasUsedJoker] = useState(false)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
   const [failureMessage, setFailureMessage] = useState(MOTIVATIONAL_MESSAGES[0])
-  const [email, setEmail] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [roundQuestions, setRoundQuestions] = useState<Question[]>([])
-  const [timerSeconds, setTimerSeconds] = useState(3600)
+  const [timerSeconds, setTimerSeconds] = useState(REVEAL_TIMER_SECONDS)
   const [isAnswerFeedbackModalOpen, setIsAnswerFeedbackModalOpen] = useState(false)
   const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(5)
+  const [answerFeedbackMessage, setAnswerFeedbackMessage] = useState(ANSWER_FEEDBACK_MESSAGES[0])
   const [pendingAnswer, setPendingAnswer] = useState<{ isCorrect: boolean; isJokerAttempt: boolean; isLastQuestion: boolean } | null>(null)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
 
@@ -69,7 +72,6 @@ function App() {
   const displayedQuestion = isFirstAttemptFinalQuestion ? JOKER_QUESTION : currentQuestion
   const questionProgressPercentage = ((currentQuestionIndex + 1) / QUESTIONS_PER_ROUND) * 100
 
-  const canStart = playerName.trim().length > 0
   const hasMinimumQuestions = BASE_QUESTIONS.length >= QUESTIONS_PER_ROUND
 
   function formatTime(seconds: number): string {
@@ -80,7 +82,7 @@ function App() {
 
   useEffect(() => {
     if (!hasWon) {
-      setTimerSeconds(3600)
+      setTimerSeconds(REVEAL_TIMER_SECONDS)
       return
     }
 
@@ -122,7 +124,7 @@ function App() {
   }, [answerFeedbackSeconds, isAnswerFeedbackModalOpen, pendingAnswer])
 
   function startGame() {
-    if (!canStart || !hasMinimumQuestions) {
+    if (!hasMinimumQuestions) {
       return
     }
 
@@ -131,9 +133,6 @@ function App() {
     setHasWon(false)
     setHasUsedJoker(false)
     setIsFailureModalOpen(false)
-    setEmail('')
-    setEmailError('')
-    setEmailSent(false)
     setGameStarted(true)
   }
 
@@ -146,9 +145,6 @@ function App() {
   function startNewRound() {
     restartRound()
     setHasWon(false)
-    setEmail('')
-    setEmailError('')
-    setEmailSent(false)
   }
 
   function openFailureModal() {
@@ -159,34 +155,6 @@ function App() {
   function closeFailureModalAndRestart() {
     setIsFailureModalOpen(false)
     restartRound()
-  }
-
-  async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const trimmedEmail = email.trim()
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
-
-    if (!isValidEmail) {
-      setEmailError('Digite um email válido para receber o resultado.')
-      return
-    }
-
-    setEmailError('')
-    setIsSendingEmail(true)
-
-    try {
-      await sendRevealEmail({
-        toEmail: trimmedEmail,
-        playerName: playerName.trim(),
-        result: REVEAL_RESULT,
-      })
-      setEmailSent(true)
-    } catch {
-      setEmailError('Não foi possível enviar agora. Tente novamente em instantes.')
-    } finally {
-      setIsSendingEmail(false)
-    }
   }
 
   function processPendingAnswer() {
@@ -228,6 +196,7 @@ function App() {
       setHasUsedJoker(true)
     }
 
+    setAnswerFeedbackMessage(getRandomAnswerFeedbackMessage())
     setPendingAnswer({ isCorrect, isJokerAttempt, isLastQuestion })
     setIsAnswerFeedbackModalOpen(true)
   }
@@ -235,6 +204,7 @@ function App() {
   return (
     <main className="quiz-page">
       <section className="quiz-card">
+        <img className="quiz-logo" src={logo} alt="Logo do quiz" />
         <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>
 
         {!hasMinimumQuestions && (
@@ -245,33 +215,25 @@ function App() {
         )}
 
         {!gameStarted && hasMinimumQuestions && (
-          <form
-            className="name-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              startGame()
-            }}
-          >
-            <label htmlFor="player-name">Seu nome</label>
-            <input
-              id="player-name"
-              type="text"
-              value={playerName}
-              onChange={(event) => setPlayerName(event.target.value)}
-              placeholder="Digite seu nome"
-              autoComplete="name"
-            />
-            <button type="submit" disabled={!canStart}>
+          <>
+            <div className="rules-box">
+              <h2>Regras</h2>
+              <ul>
+                <li>São {QUESTIONS_PER_ROUND} perguntas para você mandar bem.</li>
+                <li>Acertou todas? O sexo do bebê será revelado 🎉</li>
+                <li>Errou alguma? Sem crise: volta para a pergunta 1.</li>
+                <li>A cada rodada, as perguntas mudam para deixar mais divertido.</li>
+                <li>Responda com calma e tente ganhar antes do bebê nascer 😊</li>
+              </ul>
+            </div>
+            <button type="button" onClick={startGame}>
               Começar quiz
             </button>
-          </form>
+          </>
         )}
 
         {gameStarted && !hasWon && displayedQuestion && (
           <div className="question-box">
-            <p className="status">
-              Jogador: <strong>{playerName.trim()}</strong>
-            </p>
             <p className="status">
               Pergunta {currentQuestionIndex + 1} de {QUESTIONS_PER_ROUND}
             </p>
@@ -304,9 +266,9 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && !emailSent && timerSeconds > 0 && (
+        {gameStarted && hasWon && timerSeconds > 0 && (
           <div className="result-box">
-            <h2>Parabéns, {playerName.trim()}!</h2>
+            <h2>Parabéns!</h2>
             <p>Você acertou as 10 perguntas seguidas.</p>
             <div className="timer-section">
               <p>Preparando sua revelação...</p>
@@ -317,51 +279,24 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && !emailSent && timerSeconds === 0 && (
+        {gameStarted && hasWon && timerSeconds === 0 && (
           <div className="result-box">
-            <h2>Parabéns, {playerName.trim()}!</h2>
+            <h2>Parabéns!</h2>
             <p>Você acertou as 10 perguntas seguidas.</p>
-            <p>Digite seu email para receber o resultado final.</p>
-
-            <form className="email-form" onSubmit={handleEmailSubmit}>
-              <label htmlFor="result-email">Seu email</label>
-              <input
-                id="result-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="nome@exemplo.com"
-                autoComplete="email"
-              />
-              {emailError && <p className="status error">{emailError}</p>}
-              <button type="submit" disabled={isSendingEmail}>
-                {isSendingEmail ? 'Enviando...' : 'Receber resultado por email'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {gameStarted && hasWon && emailSent && (
-          <div className="result-box">
-            <h2>Email enviado com sucesso!</h2>
-            <p>Enviamos o resultado da revelação para {email.trim()}.</p>
+            <p>Resultado da revelação:</p>
+            <h2>{REVEAL_RESULT}</h2>
             <button type="button" onClick={startNewRound}>
               Jogar novamente
             </button>
           </div>
         )}
 
-        {gameStarted && (
-          <p className="help-text">
-            Errou uma resposta? O quiz reinicia da pergunta 1 com novas perguntas aleatórias.
-          </p>
-        )}
       </section>
 
       {isAnswerFeedbackModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card feedback-modal">
-            <p className="feedback-message">Sua resposta está sendo analisada...</p>
+            <p className="feedback-message">{answerFeedbackMessage}</p>
             <div className="feedback-timer">
               <span className="feedback-timer-number">{answerFeedbackSeconds}</span>
             </div>
