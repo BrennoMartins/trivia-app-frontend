@@ -12,6 +12,9 @@ const JOKER_QUESTION_ID = 'q0'
 const FIRST_ROUND_NORMAL_QUESTIONS = QUESTIONS_PER_ROUND - 1
 const REVEAL_RESULT = 'Menina'
 const REVEAL_TIMER_SECONDS = 20
+const QUESTION_TIMER_SECONDS = 30
+const ANSWER_FEEDBACK_SECONDS = 1
+const FINAL_REVEAL_DELAY_MS = 3000
 
 const JOKER_QUESTION = QUESTIONS.find((question) => question.id === JOKER_QUESTION_ID)
 const BASE_QUESTIONS = QUESTIONS.filter((question) => question.id !== JOKER_QUESTION_ID)
@@ -57,11 +60,14 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [roundQuestions, setRoundQuestions] = useState<Question[]>([])
   const [timerSeconds, setTimerSeconds] = useState(REVEAL_TIMER_SECONDS)
+  const [questionTimerSeconds, setQuestionTimerSeconds] = useState(QUESTION_TIMER_SECONDS)
   const [isAnswerFeedbackModalOpen, setIsAnswerFeedbackModalOpen] = useState(false)
-  const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(5)
+  const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(ANSWER_FEEDBACK_SECONDS)
   const [answerFeedbackMessage, setAnswerFeedbackMessage] = useState(ANSWER_FEEDBACK_MESSAGES[0])
   const [pendingAnswer, setPendingAnswer] = useState<{ isCorrect: boolean; isJokerAttempt: boolean; isLastQuestion: boolean } | null>(null)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
+  const [isTimeExpiredModalOpen, setIsTimeExpiredModalOpen] = useState(false)
+  const [isRevealResultVisible, setIsRevealResultVisible] = useState(false)
 
   const currentQuestion = useMemo(
     () => roundQuestions[currentQuestionIndex],
@@ -71,6 +77,16 @@ function App() {
     Boolean(JOKER_QUESTION) && !hasUsedJoker && currentQuestionIndex === QUESTIONS_PER_ROUND - 1
   const displayedQuestion = isFirstAttemptFinalQuestion ? JOKER_QUESTION : currentQuestion
   const questionProgressPercentage = ((currentQuestionIndex + 1) / QUESTIONS_PER_ROUND) * 100
+  const isQuestionTimerCritical = questionTimerSeconds > 0 && questionTimerSeconds <= 10
+  const isFinalRevealScreen = gameStarted && hasWon && timerSeconds === 0
+  const isQuestionTimerActive =
+    gameStarted &&
+    !hasWon &&
+    Boolean(displayedQuestion) &&
+    !isAnswerFeedbackModalOpen &&
+    !isSuccessModalOpen &&
+    !isFailureModalOpen &&
+    !isTimeExpiredModalOpen
 
   const hasMinimumQuestions = BASE_QUESTIONS.length >= QUESTIONS_PER_ROUND
 
@@ -100,7 +116,7 @@ function App() {
 
   useEffect(() => {
     if (!isAnswerFeedbackModalOpen) {
-      setAnswerFeedbackSeconds(5)
+      setAnswerFeedbackSeconds(ANSWER_FEEDBACK_SECONDS)
       return
     }
 
@@ -117,11 +133,47 @@ function App() {
   }, [isAnswerFeedbackModalOpen])
 
   useEffect(() => {
+    if (!isQuestionTimerActive) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      setQuestionTimerSeconds((previous) => {
+        if (previous <= 1) {
+          return 0
+        }
+        return previous - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isQuestionTimerActive])
+
+  useEffect(() => {
+    if (questionTimerSeconds === 0 && isQuestionTimerActive) {
+      setIsTimeExpiredModalOpen(true)
+    }
+  }, [questionTimerSeconds, isQuestionTimerActive])
+
+  useEffect(() => {
     if (answerFeedbackSeconds === 0 && isAnswerFeedbackModalOpen && pendingAnswer) {
       setIsAnswerFeedbackModalOpen(false)
       processPendingAnswer()
     }
   }, [answerFeedbackSeconds, isAnswerFeedbackModalOpen, pendingAnswer])
+
+  useEffect(() => {
+    if (!isFinalRevealScreen) {
+      setIsRevealResultVisible(false)
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      setIsRevealResultVisible(true)
+    }, FINAL_REVEAL_DELAY_MS)
+
+    return () => clearTimeout(timeout)
+  }, [isFinalRevealScreen])
 
   function startGame() {
     if (!hasMinimumQuestions) {
@@ -133,6 +185,8 @@ function App() {
     setHasWon(false)
     setHasUsedJoker(false)
     setIsFailureModalOpen(false)
+    setIsTimeExpiredModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
     setGameStarted(true)
   }
 
@@ -140,11 +194,8 @@ function App() {
     setRoundQuestions(getRandomQuestions(false))
     setCurrentQuestionIndex(0)
     setHasWon(false)
-  }
-
-  function startNewRound() {
-    restartRound()
-    setHasWon(false)
+    setIsTimeExpiredModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
   }
 
   function openFailureModal() {
@@ -154,6 +205,11 @@ function App() {
 
   function closeFailureModalAndRestart() {
     setIsFailureModalOpen(false)
+    restartRound()
+  }
+
+  function closeTimeExpiredModalAndRestart() {
+    setIsTimeExpiredModalOpen(false)
     restartRound()
   }
 
@@ -180,6 +236,7 @@ function App() {
 
   function continueToNextQuestion() {
     setIsSuccessModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
     setCurrentQuestionIndex((previous) => previous + 1)
   }
 
@@ -205,7 +262,7 @@ function App() {
     <main className="quiz-page">
       <section className="quiz-card">
         <img className="quiz-logo" src={logo} alt="Logo do quiz" />
-        <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>
+        {!isFinalRevealScreen && <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>}
 
         {!hasMinimumQuestions && (
           <p className="status error">
@@ -222,6 +279,7 @@ function App() {
                 <li>São {QUESTIONS_PER_ROUND} perguntas para você mandar bem.</li>
                 <li>Acertou todas? O sexo do bebê será revelado 🎉</li>
                 <li>Errou alguma? Sem crise: volta para a pergunta 1.</li>
+                <li>30s por pergunta ⏱️</li>
                 <li>A cada rodada, as perguntas mudam para deixar mais divertido.</li>
                 <li>Responda com calma e tente ganhar antes do bebê nascer 😊</li>
               </ul>
@@ -249,6 +307,10 @@ function App() {
                 className="question-progress-bar"
                 style={{ width: `${questionProgressPercentage}%` }}
               />
+            </div>
+            <div className={`question-timer${isQuestionTimerCritical ? ' critical' : ''}`}>
+              <span>{isQuestionTimerCritical ? 'Últimos segundos!' : 'Tempo para responder:'}</span>
+              <strong>{formatTime(questionTimerSeconds)}</strong>
             </div>
             <h2>{displayedQuestion.prompt}</h2>
 
@@ -279,15 +341,11 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && timerSeconds === 0 && (
-          <div className="result-box">
-            <h2>Parabéns!</h2>
-            <p>Você acertou as 10 perguntas seguidas.</p>
-            <p>Resultado da revelação:</p>
-            <h2>{REVEAL_RESULT}</h2>
-            <button type="button" onClick={startNewRound}>
-              Jogar novamente
-            </button>
+        {isFinalRevealScreen && (
+          <div className="result-box reveal-result-box">
+            <p className={`reveal-kicker${isRevealResultVisible ? ' settled' : ' waiting'}`}>Chegou a hora</p>
+            <h2>Resultado da revelação</h2>
+            <p className={`reveal-result${isRevealResultVisible ? ' visible' : ''}`}>{REVEAL_RESULT}</p>
           </div>
         )}
 
@@ -324,6 +382,20 @@ function App() {
             <img className="error-photo" src={errorPhoto} alt="Tentativa para a próxima rodada" />
             <p>{failureMessage}</p>
             <button type="button" onClick={closeFailureModalAndRestart}>
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isTimeExpiredModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="time-expired-title">
+          <div className="modal-card error-modal">
+            <h2 id="time-expired-title">Tempo esgotado!</h2>
+            <img className="error-photo" src={errorPhoto} alt="Tempo expirado" />
+            <p>O tempo para responder esta pergunta acabou.</p>
+            <p>Você voltará para a primeira pergunta.</p>
+            <button type="button" onClick={closeTimeExpiredModalAndRestart}>
               Tentar novamente
             </button>
           </div>
