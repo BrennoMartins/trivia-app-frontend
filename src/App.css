@@ -42,6 +42,41 @@
   }
 }
 
+.quiz-logo {
+  display: block;
+  max-width: 220px;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 16px;
+}
+
+@media (max-width: 640px) {
+  .quiz-logo {
+    max-width: 180px;
+    margin-bottom: 12px;
+  }
+}
+
+.rules-box {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--social-bg);
+}
+
+.rules-box h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.rules-box ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
 .name-form,
 .email-form,
 .question-box,
@@ -136,6 +171,34 @@
   height: 100%;
   background: linear-gradient(120deg, #d9e9ff 0%, #ffdced 100%);
   transition: width 0.3s ease;
+}
+
+.question-timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--social-bg);
+  color: var(--text-h);
+}
+
+.question-timer strong {
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.question-timer.critical {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  animation: pulse-feedback 1s ease-in-out infinite;
+}
+
+.question-timer.critical strong {
+  color: var(--text-h);
 }
 
 .help-text {
@@ -239,6 +302,64 @@
   letter-spacing: 1px;
 }
 
+.reveal-result-box {
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 20px 12px;
+}
+
+.reveal-kicker {
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-h);
+  opacity: 0.9;
+}
+
+.reveal-kicker.waiting {
+  animation: reveal-kicker-glow 1.6s ease-in-out infinite;
+}
+
+.reveal-kicker.settled {
+  animation: none;
+  opacity: 0.75;
+  transition: opacity 0.6s ease;
+}
+
+.reveal-result {
+  margin-top: 8px;
+  font-size: 78px;
+  line-height: 1;
+  letter-spacing: -2px;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  filter: blur(6px);
+  transition: opacity 1.8s ease, transform 1.8s ease, filter 1.8s ease;
+}
+
+.reveal-result.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+@keyframes reveal-kicker-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateY(0);
+    letter-spacing: 1px;
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+    letter-spacing: 1.6px;
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -257,6 +378,10 @@
 
   .timer-section p {
     font-size: 16px;
+  }
+
+  .reveal-result {
+    font-size: 58px;
   }
 }
 

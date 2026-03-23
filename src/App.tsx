@@ -1,8 +1,9 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { ANSWER_FEEDBACK_MESSAGES } from './config/answerFeedbackMessages'
 import { MOTIVATIONAL_MESSAGES } from './config/motivationalMessages'
 import { QUESTIONS, type Question } from './config/questions'
-import { sendRevealEmail } from './services/emailService'
+import logo from './assets/Logo.png'
 import successPhoto from './assets/sucess.jpg'
 import errorPhoto from './assets/error.jpg'
 
@@ -10,6 +11,10 @@ const QUESTIONS_PER_ROUND = 10
 const JOKER_QUESTION_ID = 'q0'
 const FIRST_ROUND_NORMAL_QUESTIONS = QUESTIONS_PER_ROUND - 1
 const REVEAL_RESULT = 'Menina'
+const REVEAL_TIMER_SECONDS = 20
+const QUESTION_TIMER_SECONDS = 30
+const ANSWER_FEEDBACK_SECONDS = 1
+const FINAL_REVEAL_DELAY_MS = 3000
 
 const JOKER_QUESTION = QUESTIONS.find((question) => question.id === JOKER_QUESTION_ID)
 const BASE_QUESTIONS = QUESTIONS.filter((question) => question.id !== JOKER_QUESTION_ID)
@@ -41,24 +46,28 @@ function getRandomMotivationalMessage(): string {
   return MOTIVATIONAL_MESSAGES[randomIndex]
 }
 
+function getRandomAnswerFeedbackMessage(): string {
+  const randomIndex = Math.floor(Math.random() * ANSWER_FEEDBACK_MESSAGES.length)
+  return ANSWER_FEEDBACK_MESSAGES[randomIndex]
+}
+
 function App() {
-  const [playerName, setPlayerName] = useState('')
   const [gameStarted, setGameStarted] = useState(false)
   const [hasWon, setHasWon] = useState(false)
   const [hasUsedJoker, setHasUsedJoker] = useState(false)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
   const [failureMessage, setFailureMessage] = useState(MOTIVATIONAL_MESSAGES[0])
-  const [email, setEmail] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [roundQuestions, setRoundQuestions] = useState<Question[]>([])
-  const [timerSeconds, setTimerSeconds] = useState(3600)
+  const [timerSeconds, setTimerSeconds] = useState(REVEAL_TIMER_SECONDS)
+  const [questionTimerSeconds, setQuestionTimerSeconds] = useState(QUESTION_TIMER_SECONDS)
   const [isAnswerFeedbackModalOpen, setIsAnswerFeedbackModalOpen] = useState(false)
-  const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(5)
+  const [answerFeedbackSeconds, setAnswerFeedbackSeconds] = useState(ANSWER_FEEDBACK_SECONDS)
+  const [answerFeedbackMessage, setAnswerFeedbackMessage] = useState(ANSWER_FEEDBACK_MESSAGES[0])
   const [pendingAnswer, setPendingAnswer] = useState<{ isCorrect: boolean; isJokerAttempt: boolean; isLastQuestion: boolean } | null>(null)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
+  const [isTimeExpiredModalOpen, setIsTimeExpiredModalOpen] = useState(false)
+  const [isRevealResultVisible, setIsRevealResultVisible] = useState(false)
 
   const currentQuestion = useMemo(
     () => roundQuestions[currentQuestionIndex],
@@ -68,8 +77,17 @@ function App() {
     Boolean(JOKER_QUESTION) && !hasUsedJoker && currentQuestionIndex === QUESTIONS_PER_ROUND - 1
   const displayedQuestion = isFirstAttemptFinalQuestion ? JOKER_QUESTION : currentQuestion
   const questionProgressPercentage = ((currentQuestionIndex + 1) / QUESTIONS_PER_ROUND) * 100
+  const isQuestionTimerCritical = questionTimerSeconds > 0 && questionTimerSeconds <= 10
+  const isFinalRevealScreen = gameStarted && hasWon && timerSeconds === 0
+  const isQuestionTimerActive =
+    gameStarted &&
+    !hasWon &&
+    Boolean(displayedQuestion) &&
+    !isAnswerFeedbackModalOpen &&
+    !isSuccessModalOpen &&
+    !isFailureModalOpen &&
+    !isTimeExpiredModalOpen
 
-  const canStart = playerName.trim().length > 0
   const hasMinimumQuestions = BASE_QUESTIONS.length >= QUESTIONS_PER_ROUND
 
   function formatTime(seconds: number): string {
@@ -80,7 +98,7 @@ function App() {
 
   useEffect(() => {
     if (!hasWon) {
-      setTimerSeconds(3600)
+      setTimerSeconds(REVEAL_TIMER_SECONDS)
       return
     }
 
@@ -98,7 +116,7 @@ function App() {
 
   useEffect(() => {
     if (!isAnswerFeedbackModalOpen) {
-      setAnswerFeedbackSeconds(5)
+      setAnswerFeedbackSeconds(ANSWER_FEEDBACK_SECONDS)
       return
     }
 
@@ -115,14 +133,50 @@ function App() {
   }, [isAnswerFeedbackModalOpen])
 
   useEffect(() => {
+    if (!isQuestionTimerActive) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      setQuestionTimerSeconds((previous) => {
+        if (previous <= 1) {
+          return 0
+        }
+        return previous - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isQuestionTimerActive])
+
+  useEffect(() => {
+    if (questionTimerSeconds === 0 && isQuestionTimerActive) {
+      setIsTimeExpiredModalOpen(true)
+    }
+  }, [questionTimerSeconds, isQuestionTimerActive])
+
+  useEffect(() => {
     if (answerFeedbackSeconds === 0 && isAnswerFeedbackModalOpen && pendingAnswer) {
       setIsAnswerFeedbackModalOpen(false)
       processPendingAnswer()
     }
   }, [answerFeedbackSeconds, isAnswerFeedbackModalOpen, pendingAnswer])
 
+  useEffect(() => {
+    if (!isFinalRevealScreen) {
+      setIsRevealResultVisible(false)
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      setIsRevealResultVisible(true)
+    }, FINAL_REVEAL_DELAY_MS)
+
+    return () => clearTimeout(timeout)
+  }, [isFinalRevealScreen])
+
   function startGame() {
-    if (!canStart || !hasMinimumQuestions) {
+    if (!hasMinimumQuestions) {
       return
     }
 
@@ -131,9 +185,8 @@ function App() {
     setHasWon(false)
     setHasUsedJoker(false)
     setIsFailureModalOpen(false)
-    setEmail('')
-    setEmailError('')
-    setEmailSent(false)
+    setIsTimeExpiredModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
     setGameStarted(true)
   }
 
@@ -141,14 +194,8 @@ function App() {
     setRoundQuestions(getRandomQuestions(false))
     setCurrentQuestionIndex(0)
     setHasWon(false)
-  }
-
-  function startNewRound() {
-    restartRound()
-    setHasWon(false)
-    setEmail('')
-    setEmailError('')
-    setEmailSent(false)
+    setIsTimeExpiredModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
   }
 
   function openFailureModal() {
@@ -161,32 +208,9 @@ function App() {
     restartRound()
   }
 
-  async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const trimmedEmail = email.trim()
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)
-
-    if (!isValidEmail) {
-      setEmailError('Digite um email válido para receber o resultado.')
-      return
-    }
-
-    setEmailError('')
-    setIsSendingEmail(true)
-
-    try {
-      await sendRevealEmail({
-        toEmail: trimmedEmail,
-        playerName: playerName.trim(),
-        result: REVEAL_RESULT,
-      })
-      setEmailSent(true)
-    } catch {
-      setEmailError('Não foi possível enviar agora. Tente novamente em instantes.')
-    } finally {
-      setIsSendingEmail(false)
-    }
+  function closeTimeExpiredModalAndRestart() {
+    setIsTimeExpiredModalOpen(false)
+    restartRound()
   }
 
   function processPendingAnswer() {
@@ -212,6 +236,7 @@ function App() {
 
   function continueToNextQuestion() {
     setIsSuccessModalOpen(false)
+    setQuestionTimerSeconds(QUESTION_TIMER_SECONDS)
     setCurrentQuestionIndex((previous) => previous + 1)
   }
 
@@ -228,6 +253,7 @@ function App() {
       setHasUsedJoker(true)
     }
 
+    setAnswerFeedbackMessage(getRandomAnswerFeedbackMessage())
     setPendingAnswer({ isCorrect, isJokerAttempt, isLastQuestion })
     setIsAnswerFeedbackModalOpen(true)
   }
@@ -235,7 +261,8 @@ function App() {
   return (
     <main className="quiz-page">
       <section className="quiz-card">
-        <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>
+        <img className="quiz-logo" src={logo} alt="Logo do quiz" />
+        {!isFinalRevealScreen && <h1>Responda e descubra se é 👶🏻♂️ ou 👶🏻♀️</h1>}
 
         {!hasMinimumQuestions && (
           <p className="status error">
@@ -245,33 +272,26 @@ function App() {
         )}
 
         {!gameStarted && hasMinimumQuestions && (
-          <form
-            className="name-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              startGame()
-            }}
-          >
-            <label htmlFor="player-name">Seu nome</label>
-            <input
-              id="player-name"
-              type="text"
-              value={playerName}
-              onChange={(event) => setPlayerName(event.target.value)}
-              placeholder="Digite seu nome"
-              autoComplete="name"
-            />
-            <button type="submit" disabled={!canStart}>
+          <>
+            <div className="rules-box">
+              <h2>Regras</h2>
+              <ul>
+                <li>São {QUESTIONS_PER_ROUND} perguntas para você mandar bem.</li>
+                <li>Acertou todas? O sexo do bebê será revelado 🎉</li>
+                <li>Errou alguma? Sem crise: volta para a pergunta 1.</li>
+                <li>30s por pergunta ⏱️</li>
+                <li>A cada rodada, as perguntas mudam para deixar mais divertido.</li>
+                <li>Responda com calma e tente ganhar antes do bebê nascer 😊</li>
+              </ul>
+            </div>
+            <button type="button" onClick={startGame}>
               Começar quiz
             </button>
-          </form>
+          </>
         )}
 
         {gameStarted && !hasWon && displayedQuestion && (
           <div className="question-box">
-            <p className="status">
-              Jogador: <strong>{playerName.trim()}</strong>
-            </p>
             <p className="status">
               Pergunta {currentQuestionIndex + 1} de {QUESTIONS_PER_ROUND}
             </p>
@@ -287,6 +307,10 @@ function App() {
                 className="question-progress-bar"
                 style={{ width: `${questionProgressPercentage}%` }}
               />
+            </div>
+            <div className={`question-timer${isQuestionTimerCritical ? ' critical' : ''}`}>
+              <span>{isQuestionTimerCritical ? 'Últimos segundos!' : 'Tempo para responder:'}</span>
+              <strong>{formatTime(questionTimerSeconds)}</strong>
             </div>
             <h2>{displayedQuestion.prompt}</h2>
 
@@ -304,9 +328,9 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && !emailSent && timerSeconds > 0 && (
+        {gameStarted && hasWon && timerSeconds > 0 && (
           <div className="result-box">
-            <h2>Parabéns, {playerName.trim()}!</h2>
+            <h2>Parabéns!</h2>
             <p>Você acertou as 10 perguntas seguidas.</p>
             <div className="timer-section">
               <p>Preparando sua revelação...</p>
@@ -317,51 +341,20 @@ function App() {
           </div>
         )}
 
-        {gameStarted && hasWon && !emailSent && timerSeconds === 0 && (
-          <div className="result-box">
-            <h2>Parabéns, {playerName.trim()}!</h2>
-            <p>Você acertou as 10 perguntas seguidas.</p>
-            <p>Digite seu email para receber o resultado final.</p>
-
-            <form className="email-form" onSubmit={handleEmailSubmit}>
-              <label htmlFor="result-email">Seu email</label>
-              <input
-                id="result-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="nome@exemplo.com"
-                autoComplete="email"
-              />
-              {emailError && <p className="status error">{emailError}</p>}
-              <button type="submit" disabled={isSendingEmail}>
-                {isSendingEmail ? 'Enviando...' : 'Receber resultado por email'}
-              </button>
-            </form>
+        {isFinalRevealScreen && (
+          <div className="result-box reveal-result-box">
+            <p className={`reveal-kicker${isRevealResultVisible ? ' settled' : ' waiting'}`}>Chegou a hora</p>
+            <h2>Resultado da revelação</h2>
+            <p className={`reveal-result${isRevealResultVisible ? ' visible' : ''}`}>{REVEAL_RESULT}</p>
           </div>
         )}
 
-        {gameStarted && hasWon && emailSent && (
-          <div className="result-box">
-            <h2>Email enviado com sucesso!</h2>
-            <p>Enviamos o resultado da revelação para {email.trim()}.</p>
-            <button type="button" onClick={startNewRound}>
-              Jogar novamente
-            </button>
-          </div>
-        )}
-
-        {gameStarted && (
-          <p className="help-text">
-            Errou uma resposta? O quiz reinicia da pergunta 1 com novas perguntas aleatórias.
-          </p>
-        )}
       </section>
 
       {isAnswerFeedbackModalOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
           <div className="modal-card feedback-modal">
-            <p className="feedback-message">Sua resposta está sendo analisada...</p>
+            <p className="feedback-message">{answerFeedbackMessage}</p>
             <div className="feedback-timer">
               <span className="feedback-timer-number">{answerFeedbackSeconds}</span>
             </div>
@@ -389,6 +382,20 @@ function App() {
             <img className="error-photo" src={errorPhoto} alt="Tentativa para a próxima rodada" />
             <p>{failureMessage}</p>
             <button type="button" onClick={closeFailureModalAndRestart}>
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isTimeExpiredModalOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="time-expired-title">
+          <div className="modal-card error-modal">
+            <h2 id="time-expired-title">Tempo esgotado!</h2>
+            <img className="error-photo" src={errorPhoto} alt="Tempo expirado" />
+            <p>O tempo para responder esta pergunta acabou.</p>
+            <p>Você voltará para a primeira pergunta.</p>
+            <button type="button" onClick={closeTimeExpiredModalAndRestart}>
               Tentar novamente
             </button>
           </div>
