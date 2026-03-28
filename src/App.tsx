@@ -32,13 +32,21 @@ function shuffle<T>(items: T[]): T[] {
   return copy
 }
 
-function getRandomQuestions(includeJokerAtEnd: boolean): Question[] {
+function getRandomQuestions(includeJokerAtEnd: boolean, excludedQuestionIds: string[] = []): Question[] {
+  const excludedIds = new Set(excludedQuestionIds)
+
   if (includeJokerAtEnd && JOKER_QUESTION) {
-    const normalQuestions = shuffle(BASE_QUESTIONS).slice(0, FIRST_ROUND_NORMAL_QUESTIONS)
+    const eligibleQuestions = BASE_QUESTIONS.filter((question) => !excludedIds.has(question.id))
+    const sourceQuestions =
+      eligibleQuestions.length >= FIRST_ROUND_NORMAL_QUESTIONS ? eligibleQuestions : BASE_QUESTIONS
+    const normalQuestions = shuffle(sourceQuestions).slice(0, FIRST_ROUND_NORMAL_QUESTIONS)
     return [...normalQuestions, JOKER_QUESTION]
   }
 
-  return shuffle(BASE_QUESTIONS).slice(0, QUESTIONS_PER_ROUND)
+  const eligibleQuestions = BASE_QUESTIONS.filter((question) => !excludedIds.has(question.id))
+  const sourceQuestions = eligibleQuestions.length >= QUESTIONS_PER_ROUND ? eligibleQuestions : BASE_QUESTIONS
+
+  return shuffle(sourceQuestions).slice(0, QUESTIONS_PER_ROUND)
 }
 
 function getRandomMotivationalMessage(): string {
@@ -191,7 +199,7 @@ function App() {
   }
 
   function restartRound() {
-    setRoundQuestions(getRandomQuestions(false))
+    setRoundQuestions(getRandomQuestions(false, roundQuestions.map((question) => question.id)))
     setCurrentQuestionIndex(0)
     setHasWon(false)
     setIsTimeExpiredModalOpen(false)
@@ -280,7 +288,7 @@ function App() {
                 <li>Acertou todas? O sexo do bebê será revelado 🎉</li>
                 <li>Errou alguma? Sem crise: volta para a pergunta 1.</li>
                 <li>30s por pergunta ⏱️</li>
-                <li>A cada rodada, as perguntas mudam para deixar mais divertido.</li>
+                <li>Ao reiniciar, a próxima rodada evita repetir as perguntas da rodada anterior.</li>
                 <li>Responda com calma e tente ganhar antes do bebê nascer 😊</li>
               </ul>
             </div>
