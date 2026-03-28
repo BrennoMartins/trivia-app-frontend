@@ -26,8 +26,8 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'q4',
-    prompt: 'Qual sinal vital mede a quantidade de batimentos por minuto?',
-    options: ['Frequência cardíaca', 'Temperatura axilar', 'Saturação de oxigênio', 'Glicemia capilar'],
+    prompt: 'Quantos gols Rogerio Ceni fez em sua Carreira?',
+    options: ['131', '105', '115', '127'],
     correctOptionIndex: 0,
   },
   {
@@ -80,9 +80,9 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'q13',
-    prompt: 'Qual peça do carro é responsável por reduzir a velocidade ao acionar o pedal de freio?',
-    options: ['Radiador', 'Sistema de freios', 'Alternador', 'Virabrequim'],
-    correctOptionIndex: 1,
+    prompt: 'Intelli é a camisa que visto por amor, Intelli Intelli Intelli a força do...?',
+    options: ['Amor', 'Torcedor', 'Interior', 'Jogador'],
+    correctOptionIndex: 2,
   },
   {
     id: 'q14',
