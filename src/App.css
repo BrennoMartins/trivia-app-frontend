@@ -77,6 +77,39 @@
   gap: 6px;
 }
 
+.topics-box {
+  gap: 14px;
+}
+
+.topics-box p {
+  margin: 0;
+}
+
+.topics-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.topics-list li {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+}
+
+.topics-warning {
+  padding: 12px 14px;
+  border: 1px solid rgba(210, 96, 133, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 220, 237, 0.7);
+  color: var(--text-h);
+  font-weight: 500;
+}
+
 .name-form,
 .email-form,
 .question-box,
