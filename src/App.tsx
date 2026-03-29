@@ -14,7 +14,17 @@ const REVEAL_RESULT = 'Menina'
 const REVEAL_TIMER_SECONDS = 60
 const QUESTION_TIMER_SECONDS = 30
 const ANSWER_FEEDBACK_SECONDS = 5
-const FINAL_REVEAL_DELAY_MS = 3000
+const FINAL_REVEAL_DELAY_MS = 15 * 60 * 1000
+
+const QUIZ_TOPICS = [
+  '🎤✨ K-POP',
+  '🌍📚 História e Geografia',
+  '🩺💉 Enfermagem',
+  '⚽🏆 Futebol',
+  '🚗🔧 Carros e Mecânica',
+  '🧠🎯 Conhecimentos Gerais',
+  '👩‍👦👨‍👦💖 Curiosidades sobre a Mamãe e o Papai',
+]
 
 const JOKER_QUESTION = QUESTIONS.find((question) => question.id === JOKER_QUESTION_ID)
 const BASE_QUESTIONS = QUESTIONS.filter((question) => question.id !== JOKER_QUESTION_ID)
@@ -61,6 +71,7 @@ function getRandomAnswerFeedbackMessage(): string {
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false)
+  const [isTopicsIntroVisible, setIsTopicsIntroVisible] = useState(false)
   const [hasWon, setHasWon] = useState(false)
   const [hasUsedJoker, setHasUsedJoker] = useState(false)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
@@ -198,6 +209,14 @@ function App() {
     setGameStarted(true)
   }
 
+  function showTopicsIntro() {
+    if (!hasMinimumQuestions) {
+      return
+    }
+
+    setIsTopicsIntroVisible(true)
+  }
+
   function restartRound() {
     setRoundQuestions(getRandomQuestions(false, roundQuestions.map((question) => question.id)))
     setCurrentQuestionIndex(0)
@@ -279,7 +298,7 @@ function App() {
           </p>
         )}
 
-        {!gameStarted && hasMinimumQuestions && (
+        {!gameStarted && !isTopicsIntroVisible && hasMinimumQuestions && (
           <>
             <div className="rules-box">
               <h2>Regras</h2>
@@ -291,6 +310,26 @@ function App() {
                 <li>Ao reiniciar, a próxima rodada evita repetir as perguntas da rodada anterior.</li>
                 <li>Responda com calma e tente ganhar antes do bebê nascer 😊</li>
               </ul>
+            </div>
+            <button type="button" onClick={showTopicsIntro}>
+              Ver temas das perguntas
+            </button>
+          </>
+        )}
+
+        {!gameStarted && isTopicsIntroVisible && hasMinimumQuestions && (
+          <>
+            <div className="rules-box topics-box">
+              <h2>Antes de começar</h2>
+              <p>O quiz vai misturar perguntas sobre varios temas. Prepare-se para encontrar:</p>
+              <ul className="topics-list">
+                {QUIZ_TOPICS.map((topic) => (
+                  <li key={topic}>{topic}</li>
+                ))}
+              </ul>
+              <p className="topics-warning">
+                🚫🤖 As perguntas foram pensadas em base no conhecimento de cada pessoa, usar o CHATGPT é roubar!!!.
+              </p>
             </div>
             <button type="button" onClick={startGame}>
               Começar quiz
@@ -341,7 +380,7 @@ function App() {
             <h2>Parabéns!</h2>
             <p>Você acertou as 10 perguntas seguidas.</p>
             <div className="timer-section">
-              <p>Preparando sua revelação...</p>
+              <p>Estamos coletando o exame de sangue e processando os resultados, já já teremos a resposta!</p>
               <div className="timer-display">
                 <span className="timer-number">{formatTime(timerSeconds)}</span>
               </div>
