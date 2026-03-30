@@ -8,21 +8,21 @@ export type Question = {
 export const QUESTIONS: Question[] = [
   {
     id: 'q1',
-    prompt: 'Qual é o nome do girl group protagonista de Guerreiras do K-POP?',
-    options: ['Saja Boys', 'Huntrix', 'Golden Girls', 'Honmoon'],
+    prompt: 'Qual planeta é conhecido como Planeta Vermelho?',
+    options: ['Vênus', 'Marte', 'Júpiter', 'Saturno'],
     correctOptionIndex: 1,
   },
   {
     id: 'q2',
-    prompt: 'Qual integrante do Huntrix é rapper e do grupo?',
-    options: ['Zoey', 'Rumi', 'Mira', 'Celine'],
-    correctOptionIndex: 0,
+    prompt: 'Qual é o maior mamífero do mundo?',
+    options: ['Elefante africano', 'Tubarão-baleia', 'Baleia-azul', 'Girafa'],
+    correctOptionIndex: 2,
   },
   {
     id: 'q3',
-    prompt: 'Como se chama a barreira mágica criada pelas vozes das caçadoras?',
-    options: ['Golden Gate', 'Honmoon', 'Star Shield', 'Soul Dome'],
-    correctOptionIndex: 1,
+    prompt: 'Quantos continentes existem no planeta Terra?',
+    options: ['5', '6', '7', '8'],
+    correctOptionIndex: 2,
   },
   {
     id: 'q4',
@@ -44,21 +44,21 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'q7',
-    prompt: 'Quantas integrantes tem o grupo BLACKPINK?',
-    options: ['3', '4', '5', '6'],
-    correctOptionIndex: 1,
+    prompt: 'Qual gás as plantas absorvem da atmosfera durante a fotossíntese?',
+    options: ['Oxigênio', 'Nitrogênio', 'Hidrogênio', 'Dióxido de carbono'],
+    correctOptionIndex: 3,
   },
   {
     id: 'q8',
-    prompt: 'Qual é o nome do fandom oficial do BTS?',
-    options: ['Blink', 'ARMY', 'Once', 'Carat'],
+    prompt: 'Qual é o menor país do mundo em território?',
+    options: ['Mônaco', 'Vaticano', 'San Marino', 'Liechtenstein'],
     correctOptionIndex: 1,
   },
   {
     id: 'q9',
-    prompt: 'Em apresentações de K-POP, como geralmente é chamado o bastão de luz dos fãs?',
-    options: ['Glow baton', 'Lightstick', 'Fanlamp', 'Neon stick'],
-    correctOptionIndex: 1,
+    prompt: 'Qual é o oceano que banha a costa leste do Brasil?',
+    options: ['Oceano Pacífico', 'Oceano Índico', 'Oceano Atlântico', 'Oceano Ártico'],
+    correctOptionIndex: 2,
   },
   {
     id: 'q10',
@@ -80,7 +80,7 @@ export const QUESTIONS: Question[] = [
   },
   {
     id: 'q13',
-    prompt: 'Intelli é a camisa que visto por amor, Intelli Intelli Intelli a força do...?',
+    prompt: 'Intelli é a camisa que visto com amor, Intelli Intelli Intelli a força do...?',
     options: ['Amor', 'Torcedor', 'Interior', 'Jogador'],
     correctOptionIndex: 2,
   },

@@ -17,7 +17,6 @@ const ANSWER_FEEDBACK_SECONDS = 5
 const FINAL_REVEAL_DELAY_MS = 3000
 
 const QUIZ_TOPICS = [
-  '🎤✨ K-POP',
   '🌍📚 História e Geografia',
   '🩺💉 Enfermagem',
   '⚽🏆 Futebol',
